@@ -16,16 +16,16 @@ class Autoencoder(nn.Module):
         self.e3 = MaskedConv(feat_ch*4, feat_ch*8, kernel_size=3, stride=2) # (b, 128, 8, 8) -> (b, 256, 4, 4)
         self.e4 = MaskedConv(feat_ch*8, feat_ch*8, kernel_size=3)           # (b, 256, 4, 4) -> (b, 256, 4, 4)
 
-        #self.dense_e5 = nn.Linear(4096, 3072)
-        #self.dense_e6 = nn.Linear(3072, 2304)
+        self.dense_e5 = nn.Linear(4096, 3072)
+        self.dense_e6 = nn.Linear(3072, 2304)
 
-        self.dense_mean = nn.Linear(4096, 2500)
-        self.dense_logvar = nn.Linear(4096, 2500)
+        self.dense_mean = nn.Linear(2304, 1728)
+        self.dense_logvar = nn.Linear(2304, 1728)
 
-        self.dense_dec = nn.Linear(2500, 4096)
+        self.dense_dec = nn.Linear(1728, 2304)
 
-        #self.dense_d6 = nn.Linear(2304, 3072)
-        #self.dense_d5 = nn.Linear(3072, 4096)
+        self.dense_d6 = nn.Linear(2304, 3072)
+        self.dense_d5 = nn.Linear(3072, 4096)
 
         self.d4 = MaskedConv(feat_ch*8, feat_ch*8, kernel_size=3)           # (b, 256, 4, 4) -> (b, 256, 4, 4)
         self.d3 = MaskedConv(feat_ch*16, feat_ch*4, kernel_size=3)          # (b, 512, 8, 8) -> (b, 128, 8, 8)
@@ -34,7 +34,7 @@ class Autoencoder(nn.Module):
         self.d0 = MaskedConv(feat_ch*2, feat_ch, kernel_size=3)             # (b, 64, 32, 32) -> (b, 3, 32, 32)
 
 
-        self.out_ref = nn.Conv2d(feat_ch, 1, kernel_size=1, padding='same', padding_mode='replicate', bias=False)   # (b, 3, 32, 32) -> (b, 1, 32, 32)
+        self.out_ref = nn.Conv2d(feat_ch, 1, kernel_size=3, padding='same', padding_mode='replicate', bias=False)   # (b, 3, 32, 32) -> (b, 1, 32, 32)
 
         self.upscale = nn.Upsample(scale_factor=2)
     
@@ -68,8 +68,8 @@ class Autoencoder(nn.Module):
 
         # Flatten image values and pass to dense layers
         x = x.view(x.shape[0], -1)      # (b, 4096)
-        #x = F.silu(self.dense_e5(x))    # (b, 3072)
-        #x = F.silu(self.dense_e6(x))    # (b, 2304)
+        x = F.silu(self.dense_e5(x))    # (b, 3072)
+        x = F.silu(self.dense_e6(x))    # (b, 2304)
 
         mean = self.dense_mean(x)       # (b, 1728)
         logvar = self.dense_logvar(x)
@@ -79,8 +79,8 @@ class Autoencoder(nn.Module):
     def decode(self, z, residuals):
         # Pass reparameterized values z through dense layer and unflatten
         z = F.silu(self.dense_dec(z))     # (b, 2304)
-        #z = F.silu(self.dense_d6(z))    # (b, 3072)
-        #z = F.silu(self.dense_d5(z))    # (b, 4096)
+        z = F.silu(self.dense_d6(z))    # (b, 3072)
+        z = F.silu(self.dense_d5(z))    # (b, 4096)
         z = z.view(-1, 256, 4, 4)
 
         # Get just mask residual from last encoder layer

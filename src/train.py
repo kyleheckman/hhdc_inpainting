@@ -152,6 +152,6 @@ if __name__ == '__main__':
         checkpoint_path = '../model/checkpoint'
     
     # Reset checkpoint path to None to start from scratch
-    checkpoint_path = None
+    #checkpoint_path = None
 
-    train(data_path=data_path, checkpoint_path=checkpoint_path, batch_size=16, epochs=50, lr=1e-5)
+    train(data_path=data_path, checkpoint_path=checkpoint_path, batch_size=16, epochs=50, lr=1e-6)
