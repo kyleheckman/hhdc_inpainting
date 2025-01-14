@@ -15,6 +15,7 @@ class MaskedConv(nn.Module):
     ):
         super(MaskedConv, self).__init__()
 
+        self.stride = stride
         ''' Calculate padding to keep same dimensions if stride == 1 or
         return dim//stride if stride > 1 '''
         conv_padding = (kernel_size-1)//2
@@ -23,7 +24,9 @@ class MaskedConv(nn.Module):
         self.conv = nn.Conv2d(in_ch, out_ch, kernel_size=kernel_size, stride=stride, padding='valid', bias=bias)
         self.conv_mask = nn.Conv2d(in_ch, out_ch, kernel_size=kernel_size, stride=stride, padding='valid', bias=bias)
         # Set kernel weight for mask convolution to all 1s
-        self.conv_mask.weight = torch.nn.Parameter(torch.ones_like(self.conv_mask.weight))
+        #self.conv_mask.weight = torch.nn.Parameter(torch.ones_like(self.conv_mask.weight))
+
+        self.kernel = torch.ones(out_ch, in_ch, kernel_size, kernel_size)
 
         if norm is not None:
             self.norm = nn.LayerNorm(normalized_shape=norm, bias=bias)
@@ -35,7 +38,8 @@ class MaskedConv(nn.Module):
             raise Exception(f'Input and Mask must be of the same Height and Width. Got input:{x.shape} and mask:{mask.shape}')
         
         x = self.conv(x*mask)
-        mask = self.conv_mask(mask)
+        #mask = self.conv_mask(mask)
+        mask = F.conv2d(mask, self.kernel, bias=None)
         mask = torch.clamp(mask, min=0, max=1)
         if hasattr(self, 'norm'):
             x = self.norm(x)
@@ -49,7 +53,7 @@ class MaskedConv_2Block(nn.Module):
             channels: List,
             kernel_size: int,
             stride: int = 1,
-            bias: bool = False,
+            bias: bool = True,
             norm = None
     ):
         super(MaskedConv_2Block, self).__init__()
@@ -57,45 +61,41 @@ class MaskedConv_2Block(nn.Module):
         if len(channels) != 3:
             raise Exception(f'Parameter [channels] requires a list of size 3, got {channels}')
 
+        self.stride = stride
         ''' Calculate padding to keep same dimensions if stride == 1 or
         return dim//stride if stride > 1 '''
         conv_padding = (kernel_size-1)//2
-        self.pad = nn.ZeroPad2d(conv_padding)
+        self.pad = nn.ReplicationPad2d(conv_padding)
 
         self.window_shape = kernel_size**2
 
         self.conv1 = nn.Conv2d(channels[0], channels[1], kernel_size=kernel_size, stride=1, padding='valid', bias=bias)
         self.conv2 = nn.Conv2d(channels[1], channels[2], kernel_size=kernel_size, stride=stride, padding='valid', bias=bias)
 
-        self.conv1_mask = nn.Conv2d(channels[0], channels[1], kernel_size=kernel_size, stride=1, padding='valid', bias=True)
-        self.conv1_mask.weight = nn.Parameter(torch.ones_like(self.conv1_mask.weight))
-        self.conv2_mask = nn.Conv2d(channels[1], channels[2], kernel_size=kernel_size, stride=stride, padding='valid', bias=True)
-        self.conv2_mask.weight = nn.Parameter(torch.ones_like(self.conv2_mask.weight))
+        self.kern = torch.ones(channels[2], channels[0], kernel_size, kernel_size).to('cuda')
 
         if norm:
             self.norm = nn.LayerNorm(normalized_shape=norm, bias=bias)
     
     def forward(self, x, mask):
-        x = self.pad(x)
-        mask = self.pad(mask)
         if x.shape[-2:] != mask.shape[-2:]:
             raise Exception(f'Input and Mask must be of the same Height and Width. Got input:{x.shape} and mask:{mask.shape}')
         
-        x = F.silu(self.conv1(x*mask))
-        mask = self.conv1_mask(mask)
+        x = self.pad(x)
+        mask = self.pad(mask)
 
-        mask_ratio = self.window_shape / (mask + 1e-8)
+        x = self.conv2(self.pad(F.silu(self.conv1(x*mask))))
+        mask = F.conv2d(mask, self.kern, bias=None, stride=self.stride)
+
         mask = torch.clamp(mask, min=0, max=1)
-        mask_ratio = mask_ratio * mask
-        x = x * mask_ratio
 
-        x = self.conv2(x*mask)
-        mask = self.conv2_mask(mask)
+        #x = self.pad(x)
+        #mask = self.pad(mask)
+
+        #x = self.conv2(x)
+        #mask = F.conv2d(mask, self.kern2, bias=None, stride=self.stride)
         
-        mask_ratio = self.window_shape / (mask + 1e-8)
-        mask = torch.clamp(mask, min=0, max=1)
-        mask_ratio = mask_ratio * mask
-        x = x * mask_ratio
+        #mask = torch.clamp(mask, min=0, max=1)
 
         if hasattr(self, 'norm'):
             x = self.norm(x)

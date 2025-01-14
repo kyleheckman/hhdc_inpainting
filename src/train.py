@@ -40,6 +40,12 @@ class TotalLoss(nn.Module):
     def loss_kld(self, mean, logvar):
         # Compute KLD of the mean and logvar layers
         return -0.5 * torch.sum(1 + logvar - torch.square(mean)  - torch.exp(logvar))
+    
+    def loss_tv(self, x):
+        # Compute pixelwise total variation loss of reconstructed image
+        loss_x = torch.mean(torch.abs(x[:,:,1:,:] - x[:,:,:-1,:]))
+        loss_y = torch.mean(torch.abs(x[:,:,:,1:] - x[:,:,:,:-1]))
+        return loss_x + loss_y
 
     def forward(self, xhat, x, mask, mean, logvar):
         xcomp = (mask * x) + ((1-mask) * xhat)
@@ -53,6 +59,7 @@ class TotalLoss(nn.Module):
         l2 = self.loss_hole(xhat, x, mask)
         l3 = self.lp(vgg_out, vgg_comp, vgg_gt)
         l4 = self.loss_kld(mean, logvar)
+        l5 = self.loss_tv(xcomp)
 
         ''' Compute weighted total loss, weighed by hyperparameters
         lambda_1 = 1
@@ -65,7 +72,7 @@ class TotalLoss(nn.Module):
         # print(f'L3: {l3}')
         # print(f'L4: {l4}')
 
-        return l1 + (7*l2) + (0.15*l3) + l4
+        return l1 + (7*l2) + (0.2*l3) + (0.1*l5)# + (0.5*l4)
 
 class VGGFeatureExtractor():
     def __init__(self, device):
@@ -154,4 +161,4 @@ if __name__ == '__main__':
     # Reset checkpoint path to None to start from scratch
     #checkpoint_path = None
 
-    train(data_path=data_path, checkpoint_path=checkpoint_path, batch_size=16, epochs=50, lr=1e-6)
+    train(data_path=data_path, checkpoint_path=checkpoint_path, batch_size=1, epochs=50, lr=1e-6)
