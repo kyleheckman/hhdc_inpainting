@@ -10,23 +10,16 @@ class Autoencoder(nn.Module):
     ):
         super(Autoencoder, self).__init__()
 
-        self.e0 = MaskedConv_2Block([1,16,32], kernel_size=7)                      # (b, 1, 32, 32) -> (b, 32, 32, 32)
+        self.e0 = MaskedConv_2Block([1,16,32], kernel_size=7, interpolate=True)                      # (b, 1, 32, 32) -> (b, 32, 32, 32)
         self.e1 = MaskedConv_2Block([32,64,64], kernel_size=5, stride=2)          # (b, 32, 32, 32) -> (b, 64, 16, 16)
         self.e2 = MaskedConv_2Block([64,128,128], kernel_size=3, stride=2)        # (b, 64, 16, 16) -> (b, 128, 8, 8)
         self.e3 = MaskedConv_2Block([128,256,256], kernel_size=3, stride=2)       # (b, 128, 8, 8) -> (b, 256, 4, 4)
         self.e4 = MaskedConv_2Block([256,256,256], kernel_size=3)                 # (b, 256, 4, 4) -> (b, 256, 4, 4)
 
-
-        #self.dense_e5 = nn.Linear(4096, 3072)
-        #self.dense_e6 = nn.Linear(3072, 2304)
-
         self.dense_mean = nn.Linear(4096, 3072)
         self.dense_logvar = nn.Linear(4096, 3072)
 
         self.dense_dec = nn.Linear(3072, 4096)
-
-        #self.dense_d6 = nn.Linear(2304, 3072)
-        #self.dense_d5 = nn.Linear(3072, 4096)
 
         self.d4 = MaskedConv_2Block([256,256,256], kernel_size=3)                 # (b, 256, 4, 4) -> (b, 256, 4, 4)
         self.d3 = MaskedConv_2Block([512,256,128], kernel_size=3)                 # (b, 512, 8, 8) -> (b, 128, 8, 8)

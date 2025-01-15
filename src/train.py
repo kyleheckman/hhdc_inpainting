@@ -72,7 +72,7 @@ class TotalLoss(nn.Module):
         # print(f'L3: {l3}')
         # print(f'L4: {l4}')
 
-        return l1 + (7*l2) + (0.2*l3) + (0.1*l5)# + (0.5*l4)
+        return l1 + (10*l2) + (0.1*l3) + (0*l4) + (0.05*l5)
 
 class VGGFeatureExtractor():
     def __init__(self, device):
@@ -161,4 +161,4 @@ if __name__ == '__main__':
     # Reset checkpoint path to None to start from scratch
     #checkpoint_path = None
 
-    train(data_path=data_path, checkpoint_path=checkpoint_path, batch_size=1, epochs=50, lr=1e-6)
+    train(data_path=data_path, checkpoint_path=checkpoint_path, batch_size=10, epochs=50, lr=1e-6)

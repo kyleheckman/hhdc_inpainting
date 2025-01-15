@@ -54,7 +54,7 @@ class MaskGenerator():
 
         else:
             mask_ratio = 0
-            while mask_ratio < 0.1 or mask_ratio > 0.2:
+            while mask_ratio < 0.2:
                 mask = self._generate_gedi_like()
                 mask = np.reshape(mask, (32,32))
                 mask_ratio = np.sum(mask) / 1024
@@ -94,7 +94,7 @@ if __name__ == '__main__':
         mask_ratio = np.sum(mask) / 1024
         print(mask_ratio)
         # Keep mask ratio between 25%-75% missing pixels
-        if mask_ratio < 0.10 or mask_ratio > 0.2:
+        if mask_ratio < 0.2:
             continue
 
 

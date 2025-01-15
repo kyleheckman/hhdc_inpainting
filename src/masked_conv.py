@@ -54,7 +54,8 @@ class MaskedConv_2Block(nn.Module):
             kernel_size: int,
             stride: int = 1,
             bias: bool = True,
-            norm = None
+            norm = None,
+            interpolate:bool = False
     ):
         super(MaskedConv_2Block, self).__init__()
 
@@ -62,6 +63,7 @@ class MaskedConv_2Block(nn.Module):
             raise Exception(f'Parameter [channels] requires a list of size 3, got {channels}')
 
         self.stride = stride
+        self.itp = interpolate
         ''' Calculate padding to keep same dimensions if stride == 1 or
         return dim//stride if stride > 1 '''
         conv_padding = (kernel_size-1)//2
@@ -72,7 +74,8 @@ class MaskedConv_2Block(nn.Module):
         self.conv1 = nn.Conv2d(channels[0], channels[1], kernel_size=kernel_size, stride=1, padding='valid', bias=bias)
         self.conv2 = nn.Conv2d(channels[1], channels[2], kernel_size=kernel_size, stride=stride, padding='valid', bias=bias)
 
-        self.kern = torch.ones(channels[2], channels[0], kernel_size, kernel_size).to('cuda')
+        self.kern1 = torch.ones(channels[2], channels[0], kernel_size, kernel_size).to('cuda')
+        #self.kern2 = torch.ones(channels[2], channels[1], kernel_size, kernel_size).to('cuda')
 
         if norm:
             self.norm = nn.LayerNorm(normalized_shape=norm, bias=bias)
@@ -81,21 +84,34 @@ class MaskedConv_2Block(nn.Module):
         if x.shape[-2:] != mask.shape[-2:]:
             raise Exception(f'Input and Mask must be of the same Height and Width. Got input:{x.shape} and mask:{mask.shape}')
         
-        x = self.pad(x)
+        if self.itp:
+            size = x.shape[-1]
+            d = torch.linspace(-1,1,2*size)
+            meshx, meshy = torch.meshgrid((d,d))
+            grid = torch.stack((meshy,meshx),2).unsqueeze(0).to('cuda')
+            grid = torch.cat([grid]*x.shape[0])
+            mx = F.grid_sample(x*mask, grid, mode='nearest', padding_mode='border', align_corners=False)
+            mx = F.max_pool2d(mx, 2)
+        else:
+            mx = x*mask
+
+        mx = self.pad(mx)
+        #x = self.pad(x)
         mask = self.pad(mask)
 
-        x = self.conv2(self.pad(F.silu(self.conv1(x*mask))))
-        mask = F.conv2d(mask, self.kern, bias=None, stride=self.stride)
+        x = self.conv2(self.pad(F.silu(self.conv1(mx))))
+        #x = F.silu(self.conv1(x*mask))
+        mask = F.conv2d(mask, self.kern1, bias=None, stride=self.stride)
 
         mask = torch.clamp(mask, min=0, max=1)
 
-        #x = self.pad(x)
-        #mask = self.pad(mask)
+        # x = self.pad(x)
+        # mask = self.pad(mask)
 
-        #x = self.conv2(x)
-        #mask = F.conv2d(mask, self.kern2, bias=None, stride=self.stride)
+        # x = self.conv2(x)
+        # mask = F.conv2d(mask, self.kern2, bias=None, stride=self.stride)
         
-        #mask = torch.clamp(mask, min=0, max=1)
+        # mask = torch.clamp(mask, min=0, max=1)
 
         if hasattr(self, 'norm'):
             x = self.norm(x)
