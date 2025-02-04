@@ -8,10 +8,10 @@ import os
 import numpy as np
 import argparse
 
-from .model.diffusion_unet import DiffusionUnet
-from .utils.datasets import HHDCDataset
-from .utils.schedulers import NoiseScheduler
-from .utils.masking import MaskGenerator
+from ..model.diffusion_unet import DiffusionUnet
+from ..utils.datasets import HHDCDataset
+from ..utils.schedulers import NoiseScheduler
+from ..utils.masking import MaskGenerator
 
 '''
 For testing V1 of DiffusionUnet

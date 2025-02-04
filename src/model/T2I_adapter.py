@@ -13,16 +13,41 @@ class T2IAdapter(nn.Module):
             norms: List[Tuple],
             bias: bool = True
     ):
-        
-        module_list = []
+        super(T2IAdapter, self).__init__()
+
+
+        self.module_list = nn.ModuleList([])
+
+        self.in_ref = nn.Conv2d(1, 32, kernel_size=3, padding=1, padding_mode='zeros', bias=bias)
 
         for layer in range(num_layers):
             module = nn.Conv2d(channels[layer], channels[layer], kernel_size=3, padding=1, padding_mode='zeros', bias=bias)
-            module_list.append(module)
+            self.module_list.append(module)
 
             module = ResBlock2d(in_channels=channels[layer], out_channels=channels[layer], norm=norms[layer])
-            module_list.append(module)
+            self.module_list.append(module)
 
             module = ResBlock2d(in_channels=channels[layer], out_channels=channels[layer], norm=norms[layer])
-            module_list.append(module)
-        
+            self.module_list.append(module)
+
+            self.module_list.append(nn.LayerNorm(normalized_shape=norms[layer]))
+            
+            # If not last layer, downsample using pixel unshuffle
+            if layer != num_layers-1:
+                self.module_list.append(nn.PixelUnshuffle(2))
+                self.module_list.append(nn.Conv2d(channels[layer]*4, channels[layer+1], kernel_size=1, bias=bias))
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        h = F.gelu(self.in_ref(x))
+        for i, module in enumerate(self.module_list):
+            print(i)
+            h = module(h)
+            print(h.shape)
+
+if __name__ == '__main__':
+    x = torch.rand(1,1,128,64)
+
+    adapt = T2IAdapter(num_layers=4, channels=[32,64,128,256], norms=[(128,64),(64,32),(32,16),(16,8)])
+    adapt(x)
+    print(x.shape)
+

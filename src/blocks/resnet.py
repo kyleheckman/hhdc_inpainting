@@ -120,6 +120,7 @@ class ResBlock2d(nn.Module):
         self.padding_mode = padding_mode
 
         self.dropout = dropout
+        self.dropout_layer = nn.Dropout2d(p=dropout)
 
         self.conv1 = nn.Conv2d(in_channels, mid_channels, kernel_size=kernel_size, dilation=dilation, stride=1, padding=padding, padding_mode=padding_mode, bias=bias)
         self.conv2 = nn.Conv2d(mid_channels, out_channels, kernel_size=kernel_size, dilation=dilation, stride=1, padding=padding, padding_mode=padding_mode, bias=bias)
@@ -143,7 +144,7 @@ class ResBlock2d(nn.Module):
         if hasattr(self, 'norm2'):
             h = self.norm2(h)
         h = F.gelu(h)
-        h = self.dropout(h)
+        h = self.dropout_layer(h)
 
         h = self.conv2(h)
 

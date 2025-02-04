@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from typing import Optional, List
 
 from ..blocks.resnet import ResTimeEmbBlock2d
 from ..blocks.transformer import Transformer2d
@@ -63,25 +64,40 @@ class DiffusionUnet(nn.Module):
         self.pre_norm7 = nn.LayerNorm(normalized_shape=(128,64), bias=bias)
         self.sattn7 = Transformer2d(block_size=(16,16), embed_dim=768, seq_dim=1024, attn_num_heads=8, attn_dropout=0.1, norm=(768), bias=bias)
 
+        self.out_norm = nn.LayerNorm(normalized_shape=(128,64))
         self.out_ref = nn.Conv2d(32, 1, kernel_size=1)
 
         self.time_emb = SinusoidalTimeEmbeddings(time_steps=time_steps, max_dim=512)
     
-    def forward(self, x: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, t: torch.Tensor, t2i: Optional[List[torch.Tensor]] = None) -> torch.Tensor:
+        if t2i:
+            ti1, ti2, ti3, ti4 = t2i
         embed = self.time_emb(x, t)
 
         h = self.in_ref(x)
 
+        if ti1:
+            h = h + ti1
+
         e1 = self.enc11(h, embed)
         e1 = e1 + self.sattn1(self.pre_norm1(e1))
 
-        e2 = self.enc21(self.down_conv1(e1), embed)
+        e2 = self.down_conv1(e1)
+        if ti2:
+            e2 = e2 + ti2
+        e2 = self.enc21(e2, embed)
         e2 = e2 + self.sattn2(self.pre_norm2(e2))
 
-        e3 = self.enc31(self.down_conv2(e2), embed)
+        e3= self.down_conv2(e2)
+        if ti3:
+            e3 = e3 + ti3
+        e3 = self.enc31(e3, embed)
         e3 = e3 + self.sattn3(self.pre_norm3(e3))
 
-        z = self.mid1(self.down_conv3(e3), embed)
+        z = self.down_conv3(e3)
+        if ti4:
+            z = z + ti4
+        z = self.mid1(z, embed)
         z = z + self.sattn4(self.pre_norm4(z))
         z = self.mid3(z, embed)
 

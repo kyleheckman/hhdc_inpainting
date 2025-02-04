@@ -7,9 +7,9 @@ from tqdm import tqdm
 import os
 import argparse
 
-from .model.diffusion_unet import DiffusionUnet
-from .utils.datasets import HHDCDataset
-from .utils.schedulers import NoiseScheduler
+from ..model.diffusion_unet import DiffusionUnet
+from ..utils.datasets import HHDCDataset
+from ..utils.schedulers import NoiseScheduler
 
 '''
 For training V1 of DiffusionUnet
