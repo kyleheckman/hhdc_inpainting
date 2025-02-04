@@ -46,7 +46,7 @@ def calc_agbd(rh, type):
 		return agbd
 
 if __name__ == '__main__':
-    data_dir = './samples'
+    data_dir = '../samples'
     entries = os.listdir(data_dir)
 
     entries = [en for en in entries if '.npy' in en]
