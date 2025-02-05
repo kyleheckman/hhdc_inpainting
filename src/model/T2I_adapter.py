@@ -37,17 +37,24 @@ class T2IAdapter(nn.Module):
                 self.module_list.append(nn.PixelUnshuffle(2))
                 self.module_list.append(nn.Conv2d(channels[layer]*4, channels[layer+1], kernel_size=1, bias=bias))
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, intm_out: List[int]) -> torch.Tensor:
+        temp = []
+        
         h = F.gelu(self.in_ref(x))
         for i, module in enumerate(self.module_list):
-            print(i)
             h = module(h)
-            print(h.shape)
+            if i in intm_out:
+                temp.append(h)
+        temp.append(h)
+        return temp
+
 
 if __name__ == '__main__':
     x = torch.rand(1,1,128,64)
 
     adapt = T2IAdapter(num_layers=4, channels=[32,64,128,256], norms=[(128,64),(64,32),(32,16),(16,8)])
-    adapt(x)
-    print(x.shape)
+    temp = adapt(x, [3,9,15])
 
+    print(len(temp))
+    for i in temp:
+        print(i.shape)

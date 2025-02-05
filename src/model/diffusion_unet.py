@@ -69,34 +69,23 @@ class DiffusionUnet(nn.Module):
 
         self.time_emb = SinusoidalTimeEmbeddings(time_steps=time_steps, max_dim=512)
     
-    def forward(self, x: torch.Tensor, t: torch.Tensor, t2i: Optional[List[torch.Tensor]] = None) -> torch.Tensor:
-        if t2i:
-            ti1, ti2, ti3, ti4 = t2i
+    def forward(self, x: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
         embed = self.time_emb(x, t)
 
         h = self.in_ref(x)
-
-        if ti1:
-            h = h + ti1
 
         e1 = self.enc11(h, embed)
         e1 = e1 + self.sattn1(self.pre_norm1(e1))
 
         e2 = self.down_conv1(e1)
-        if ti2:
-            e2 = e2 + ti2
         e2 = self.enc21(e2, embed)
         e2 = e2 + self.sattn2(self.pre_norm2(e2))
 
         e3= self.down_conv2(e2)
-        if ti3:
-            e3 = e3 + ti3
         e3 = self.enc31(e3, embed)
         e3 = e3 + self.sattn3(self.pre_norm3(e3))
 
         z = self.down_conv3(e3)
-        if ti4:
-            z = z + ti4
         z = self.mid1(z, embed)
         z = z + self.sattn4(self.pre_norm4(z))
         z = self.mid3(z, embed)
@@ -115,6 +104,7 @@ class DiffusionUnet(nn.Module):
         z = torch.concat((z, e1), axis=1)
         z = self.dec11(z, embed)
         z = z + self.sattn7(self.pre_norm7(z))
+        z = F.gelu(self.out_norm(z))
 
         return self.out_ref(z)
 
