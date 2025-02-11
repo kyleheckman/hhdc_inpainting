@@ -1,2 +1,2 @@
 # hhdc_inpainting
-Variational Autoencoder design to solve inpainting missing spatial information within incomplete HHDC
+Diffusion model design to solve inpainting missing spatial information within incomplete HHDC based on DDPM architecture.
